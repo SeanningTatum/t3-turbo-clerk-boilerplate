@@ -123,18 +123,20 @@ export default function Index() {
     onSettled: () => utils.post.all.invalidate(),
   });
 
+  // console.log(postQuery.data)
+
   return (
     <SafeAreaView className="bg-background">
       {/* Changes page title visible on the header */}
       <Stack.Screen options={{ title: "Home Page" }} />
       <View className="h-full w-full bg-background p-4">
         <Text className="pb-2 text-center text-5xl font-bold text-foreground">
-          Create <Text className="text-primary">T3</Text> Turbo
+          Create <Text className="text-primary">T3</Text> Turbo {postQuery.data}
         </Text>
 
-        <MobileAuth />
+        {/* <MobileAuth /> */}
 
-        <View className="py-2">
+        {/* <View className="py-2">
           <Text className="font-semibold italic text-primary">
             Press on a post
           </Text>
@@ -150,7 +152,7 @@ export default function Index() {
               onDelete={() => deletePostMutation.mutate(p.item.id)}
             />
           )}
-        />
+        /> */}
 
         <CreatePost />
       </View>
