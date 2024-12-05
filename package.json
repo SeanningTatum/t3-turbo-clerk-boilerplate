@@ -6,6 +6,7 @@
     "pnpm": "^9.14.2"
   },
   "packageManager": "pnpm@9.14.2",
+  "type": "module",
   "scripts": {
     "build": "turbo run build",
     "clean": "git clean -xdf node_modules",
@@ -21,11 +22,14 @@
     "lint:ws": "pnpm dlx sherif@latest",
     "postinstall": "pnpm lint:ws",
     "typecheck": "turbo run typecheck",
-    "ui-add": "turbo run ui-add"
+    "ui-add": "turbo run ui-add",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@acme/prettier-config": "workspace:*",
+    "@commitlint/config-conventional": "^19.6.0",
     "@turbo/gen": "^2.3.1",
+    "husky": "^9.1.7",
     "prettier": "catalog:",
     "turbo": "^2.3.1",
     "typescript": "catalog:"
