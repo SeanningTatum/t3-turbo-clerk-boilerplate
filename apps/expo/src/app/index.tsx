@@ -1,20 +1,55 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Stack } from "expo-router";
+import { Link, Stack } from "expo-router";
 // import { FlashList } from "@shopify/flash-list";
 
 import { api } from "~/utils/api";
-import { Text, View } from "react-native";
+import { Button, Text, View } from "react-native";
+import { SignedIn, SignedOut, useAuth, useOAuth, useUser } from "@clerk/clerk-expo";
+import { useCallback, useEffect } from "react";
+import * as WebBrowser from 'expo-web-browser'
+import * as Linking from 'expo-linking'
+
+export const useWarmUpBrowser = () => {
+  useEffect(() => {
+    // Warm up the android browser to improve UX
+    // https://docs.expo.dev/guides/authentication/#improving-user-experience
+    void WebBrowser.warmUpAsync()
+    return () => {
+      void WebBrowser.coolDownAsync()
+    }
+  }, [])
+}
+
+WebBrowser.maybeCompleteAuthSession()
 
 export default function Index() {
   // const utils = api.useUtils();
-
+  const { user } = useUser()
+  const { signOut } = useAuth();
   const postQuery = api.post.all.useQuery();
 
-  // const deletePostMutation = api.post.delete.useMutation({
-  //   onSettled: () => utils.post.all.invalidate(),
-  // });
+  useWarmUpBrowser()
 
-  // console.log(postQuery.data)
+  const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' })
+
+  const onPressGoogleSignIn = useCallback(async () => {
+    try {
+      const { createdSessionId, setActive } = await startOAuthFlow({
+        redirectUrl: Linking.createURL('/', { scheme: 'myapp' }),
+      })
+
+      if (createdSessionId) {
+        setActive?.({ session: createdSessionId })
+          .catch(console.error)
+      } else {
+        // Use signIn or signUp for next steps such as MFA
+      }
+    } catch (err) {
+      console.error('OAuth error', err)
+    }
+  }, [])
+
+
 
   return (
     <SafeAreaView className="bg-background">
@@ -24,6 +59,21 @@ export default function Index() {
         <Text className="pb-2 text-center text-5xl font-bold text-foreground">
           Create <Text className="text-primary">T3</Text> Turbo {postQuery.data}
         </Text>
+        <SignedIn>
+          <Text className="text-primary">You are signed in as {user?.emailAddresses[0]?.emailAddress}</Text>
+
+          <Button title="Sign Out" onPress={() => signOut()} />
+        </SignedIn>
+        <SignedOut>
+          <Link href="/sign-in">
+            <Text className="text-white">Sign In Email</Text>
+          </Link>
+          <Link href="/sign-up">
+            <Text className="text-white">Sign Up Email</Text>
+          </Link>
+
+          <Button title="Sign in with Google" onPress={onPressGoogleSignIn} />
+        </SignedOut>
 
         {/* <MobileAuth /> */}
 
