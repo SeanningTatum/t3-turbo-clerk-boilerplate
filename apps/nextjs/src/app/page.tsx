@@ -1,13 +1,13 @@
 import { Suspense } from "react";
-import { api } from "~/trpc/server";
-import { ExampleSsr } from "./_components/example-ssr";
-import { ExampleClient } from "./_components/example-client";
 
+import { api } from "~/trpc/server";
+import { ExampleClient } from "./_components/example-client";
+import { ExampleSsr } from "./_components/example-ssr";
 
 export const runtime = "edge";
 
 export default function HomePage() {
-  void api.post.all.prefetch()
+  void api.post.all.prefetch();
 
   return (
     <main className="container h-screen py-16">

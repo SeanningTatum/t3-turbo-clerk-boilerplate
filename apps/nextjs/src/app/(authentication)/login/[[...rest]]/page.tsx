@@ -1,5 +1,4 @@
-import { SignIn } from "@clerk/nextjs"
-
+import { SignIn } from "@clerk/nextjs";
 
 export default function LoginPage() {
   return (
@@ -8,10 +7,10 @@ export default function LoginPage() {
       appearance={{
         elements: {
           rootBox: "w-full max-w-full",
-          cardBox: 'w-full max-w-full',
-          formButtonPrimary: 'bg-primary hover:bg-primary/80 !shadow-none'
-        }
+          cardBox: "w-full max-w-full",
+          formButtonPrimary: "bg-primary hover:bg-primary/80 !shadow-none",
+        },
       }}
     />
-  )
+  );
 }

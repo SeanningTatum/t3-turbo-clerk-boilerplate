@@ -1,5 +1,4 @@
-import { SignUp } from "@clerk/nextjs"
-
+import { SignUp } from "@clerk/nextjs";
 
 export default function RegisterPage() {
   return (
@@ -8,11 +7,10 @@ export default function RegisterPage() {
       appearance={{
         elements: {
           rootBox: "w-full max-w-full",
-          cardBox: 'w-full max-w-full',
-          formButtonPrimary: 'bg-primary hover:bg-primary/80 !shadow-none'
-        }
+          cardBox: "w-full max-w-full",
+          formButtonPrimary: "bg-primary hover:bg-primary/80 !shadow-none",
+        },
       }}
     />
-  )
+  );
 }
-

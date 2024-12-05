@@ -10,8 +10,9 @@ import { TRPCReactProvider } from "~/trpc/react";
 
 import "~/app/globals.css";
 
-import { env } from "~/env";
 import { ClerkProvider } from "@clerk/nextjs";
+
+import { env } from "~/env";
 
 export const metadata: Metadata = {
   metadataBase: new URL(

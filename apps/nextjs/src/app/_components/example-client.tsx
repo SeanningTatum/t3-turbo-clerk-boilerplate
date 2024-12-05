@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
-import { SignOutButton, useUser } from "@clerk/nextjs"
 import Link from "next/link";
-import { api } from "~/trpc/react";
+import { SignOutButton, useUser } from "@clerk/nextjs";
 
+import { api } from "~/trpc/react";
 
 export function ExampleClient() {
   const { user, isSignedIn } = useUser();
 
   const userIdFromServer = api.post.protected.useQuery(undefined, {
     enabled: isSignedIn,
-  })
+  });
 
   return (
     <div>
@@ -30,5 +30,5 @@ export function ExampleClient() {
         </div>
       )}
     </div>
-  )
+  );
 }

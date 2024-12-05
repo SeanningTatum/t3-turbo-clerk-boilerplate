@@ -1,8 +1,7 @@
-import { api } from "~/trpc/server"
-
+import { api } from "~/trpc/server";
 
 export async function ExampleSsr() {
   const posts = await api.post.all();
 
-  return JSON.stringify(posts)
+  return JSON.stringify(posts);
 }

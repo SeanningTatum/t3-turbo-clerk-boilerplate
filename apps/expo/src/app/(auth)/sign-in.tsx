@@ -1,38 +1,38 @@
-import { useSignIn } from '@clerk/clerk-expo'
-import { Link, useRouter } from 'expo-router'
-import { Text, TextInput, Button, View } from 'react-native'
-import React from 'react'
+import React from "react";
+import { Button, Text, TextInput, View } from "react-native";
+import { Link, useRouter } from "expo-router";
+import { useSignIn } from "@clerk/clerk-expo";
 
 export default function Page() {
-  const { signIn, setActive, isLoaded } = useSignIn()
-  const router = useRouter()
+  const { signIn, setActive, isLoaded } = useSignIn();
+  const router = useRouter();
 
-  const [emailAddress, setEmailAddress] = React.useState('')
-  const [password, setPassword] = React.useState('')
+  const [emailAddress, setEmailAddress] = React.useState("");
+  const [password, setPassword] = React.useState("");
 
   const onSignInPress = React.useCallback(async () => {
     if (!isLoaded) {
-      return
+      return;
     }
 
     try {
       const signInAttempt = await signIn.create({
         identifier: emailAddress,
         password,
-      })
+      });
 
-      if (signInAttempt.status === 'complete') {
-        await setActive({ session: signInAttempt.createdSessionId })
-        router.replace('/')
+      if (signInAttempt.status === "complete") {
+        await setActive({ session: signInAttempt.createdSessionId });
+        router.replace("/");
       } else {
         // See https://clerk.com/docs/custom-flows/error-handling
         // for more info on error handling
-        console.error(JSON.stringify(signInAttempt, null, 2))
+        console.error(JSON.stringify(signInAttempt, null, 2));
       }
     } catch (err) {
-      console.error(JSON.stringify(err, null, 2))
+      console.error(JSON.stringify(err, null, 2));
     }
-  }, [isLoaded, emailAddress, password])
+  }, [isLoaded, emailAddress, password]);
 
   return (
     <View>
@@ -56,5 +56,5 @@ export default function Page() {
         </Link>
       </View>
     </View>
-  )
+  );
 }

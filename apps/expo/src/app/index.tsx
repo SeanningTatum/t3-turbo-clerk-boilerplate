@@ -1,61 +1,65 @@
+import { useCallback, useEffect } from "react";
+import { Button, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Linking from "expo-linking";
 import { Link, Stack } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
+import {
+  SignedIn,
+  SignedOut,
+  useAuth,
+  useOAuth,
+  useUser,
+} from "@clerk/clerk-expo";
+
 // import { FlashList } from "@shopify/flash-list";
 
 import { api } from "~/utils/api";
-import { Button, Text, View } from "react-native";
-import { SignedIn, SignedOut, useAuth, useOAuth, useUser } from "@clerk/clerk-expo";
-import { useCallback, useEffect } from "react";
-import * as WebBrowser from 'expo-web-browser'
-import * as Linking from 'expo-linking'
 
 export const useWarmUpBrowser = () => {
   useEffect(() => {
     // Warm up the android browser to improve UX
     // https://docs.expo.dev/guides/authentication/#improving-user-experience
-    void WebBrowser.warmUpAsync()
+    void WebBrowser.warmUpAsync();
     return () => {
-      void WebBrowser.coolDownAsync()
-    }
-  }, [])
-}
+      void WebBrowser.coolDownAsync();
+    };
+  }, []);
+};
 
-WebBrowser.maybeCompleteAuthSession()
+WebBrowser.maybeCompleteAuthSession();
 
 export default function Index() {
   // const utils = api.useUtils();
-  const { user } = useUser()
+  const { user } = useUser();
   const { signOut } = useAuth();
   const postQuery = api.post.all.useQuery();
 
   const protectedPostQuery = api.post.protected.useQuery(undefined, {
     enabled: !!user,
-  })
+  });
 
-  useWarmUpBrowser()
+  useWarmUpBrowser();
 
-  const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' })
+  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
 
   const onPressGoogleSignIn = useCallback(async () => {
     try {
       const { createdSessionId, setActive } = await startOAuthFlow({
-        redirectUrl: Linking.createURL('/', { scheme: 'myapp' }),
-      })
+        redirectUrl: Linking.createURL("/", { scheme: "myapp" }),
+      });
 
-      console.log(createdSessionId)
+      console.log(createdSessionId);
 
       if (createdSessionId) {
-        setActive?.({ session: createdSessionId })
-          .catch(console.error)
+        setActive?.({ session: createdSessionId }).catch(console.error);
       } else {
         // Use signIn or signUp for next steps such as MFA
       }
     } catch (err) {
-      console.error('OAuth error', err)
+      console.error("OAuth error", err);
     }
-  }, [])
-
-
+  }, []);
 
   return (
     <SafeAreaView className="bg-background">
@@ -66,7 +70,9 @@ export default function Index() {
           Create <Text className="text-primary">T3</Text> Turbo {postQuery.data}
         </Text>
         <SignedIn>
-          <Text className="text-primary">You are signed in as {user?.emailAddresses[0]?.emailAddress}</Text>
+          <Text className="text-primary">
+            You are signed in as {user?.emailAddresses[0]?.emailAddress}
+          </Text>
           <Text className="text-primary">{protectedPostQuery.data ?? ""}</Text>
           <Button title="Sign Out" onPress={() => signOut()} />
         </SignedIn>
@@ -98,7 +104,6 @@ export default function Index() {
             />
           )}
         /> */}
-
       </View>
     </SafeAreaView>
   );
