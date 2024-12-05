@@ -5,17 +5,20 @@
 Currently, users upload XLSX files and are taken directly to the cleaning page where they must configure column types and formats during the cleaning process. This creates cognitive overhead and makes the cleaning workflow less efficient. We need a more streamlined approach that allows users to configure columns upfront before starting the actual cleaning process.
 
 ## Figma Link
+
 - https://www.figma.com/design/5XywMJbZSzk6Yr3C7l67jL/PRDCTZE-MVP?node-id=736-16174&node-type=section&t=lxgAEewvBdzDIhdJ-0
 
 ## Background
 
 The existing workflow:
+
 1. User uploads XLSX file
 2. System processes and stores file data in DatacleanerFile table
 3. User is immediately taken to cleaning interface
 4. Column types and formats are configured during cleaning
 
 This approach has several limitations:
+
 - Users must context switch between cleaning and configuration
 - No clear separation between setup and cleaning phases
 - Harder to track which columns need cleaning
@@ -26,6 +29,7 @@ This approach has several limitations:
 Add an intermediary modal step after file upload but before the cleaning page:
 
 1. After successful file upload, show a modal with:
+
    - List of detected columns from the file
    - Toggle buttons to select/deselect columns for cleaning
    - Dropdown to preselect data type for each column
@@ -40,10 +44,11 @@ Add an intermediary modal step after file upload but before the cleaning page:
 ## Schema Changes
 
 Update the ColumnSchema to include:
+
 ```typescript
 export const ColumnSchema = z.object({
   id: z.string(),
-  name: z.string(), 
+  name: z.string(),
   cellOrder: z.array(z.string()),
   type: ColumnTypeSchema.optional(),
   format: z.string().optional(),
@@ -55,42 +60,50 @@ export const ColumnSchema = z.object({
 ## API Changes
 
 New tRPC mutations:
+
 ```typescript
 // Bulk update columns
 bulkUpdateColumns: protectedProcedure
-  .input(z.object({
-    fileId: z.string(),
-    columns: z.array(z.object({
-      id: z.string(),
-      isSelected: z.boolean(),
-      type: ColumnTypeSchema,
-    }))
-  }))
+  .input(
+    z.object({
+      fileId: z.string(),
+      columns: z.array(
+        z.object({
+          id: z.string(),
+          isSelected: z.boolean(),
+          type: ColumnTypeSchema,
+        }),
+      ),
+    }),
+  )
   .mutation(async ({ ctx, input }) => {
-      // Logic goes in here
-  })
+    // Logic goes in here
+  });
 ```
-
 
 ## Implementation Plan
 
 Phase 1: Basic Column Selection
+
 - Implement database schema changes
 - Create basic modal UI with column toggling
 - Add navigation flow from upload to modal to cleaning page
 
 Phase 2: Type Preselection
+
 - Add type selection dropdowns
 - Implement type persistence
 - Update cleaning page to respect preselected types
 
 Phase 3: Preview & UX Improvements
+
 - Add data preview functionality
 - Implement bulk selection/deselection
 - Add column search/filtering
 - Add validation and error handling
 
 Phase 4: Analytics & Optimization
+
 - Track usage patterns
 - Optimize performance
 - Add column type suggestions based on content

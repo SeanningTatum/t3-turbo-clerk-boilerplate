@@ -11,6 +11,7 @@ Currently, the app is free for all users, with 10 active users. The app allows u
 ## Proposal
 
 Implement a tiered subscription model with the following structure:
+
 - Trial Period: 14 days with full access (requires payment information)
 - Basic Tier: $5/month - 500 rows
 - Core Tier: $12/month - 1,000 rows
@@ -60,28 +61,26 @@ model UsageCount {
 ```typescript
 // Subscription procedures
 export const subscriptionRouter = createTRPCRouter({
-  getCurrentSubscription: protectedProcedure
-    .query(async ({ ctx }) => {
-      return ctx.prisma.subscription.findUnique({
-        where: { userId: ctx.auth.userId },
-      });
-    }),
-    
-  getUsage: protectedProcedure
-    .query(async ({ ctx }) => {
-      return ctx.prisma.usageCount.findUnique({
-        where: { userId: ctx.auth.userId },
-      });
-    }),
+  getCurrentSubscription: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.prisma.subscription.findUnique({
+      where: { userId: ctx.auth.userId },
+    });
+  }),
+
+  getUsage: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.prisma.usageCount.findUnique({
+      where: { userId: ctx.auth.userId },
+    });
+  }),
 
   upgradeSubscription: protectedProcedure
-    .input(z.object({ newTier: z.enum(['basic', 'core', 'custom', 'pro']) }))
+    .input(z.object({ newTier: z.enum(["basic", "core", "custom", "pro"]) }))
     .mutation(async ({ ctx, input }) => {
       // Stripe subscription upgrade logic
     }),
 
   downgradeSubscription: protectedProcedure
-    .input(z.object({ newTier: z.enum(['basic', 'core', 'custom', 'pro']) }))
+    .input(z.object({ newTier: z.enum(["basic", "core", "custom", "pro"]) }))
     .mutation(async ({ ctx, input }) => {
       // Stripe subscription downgrade logic
     }),
@@ -99,14 +98,14 @@ export const cleaningRouter = createTRPCRouter({
       const subscription = await ctx.prisma.subscription.findUnique({
         where: { userId: ctx.auth.userId },
       });
-      
+
       if (exceedsLimit(usage, subscription, input.rowCount)) {
         throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'Row limit exceeded for current subscription tier',
+          code: "FORBIDDEN",
+          message: "Row limit exceeded for current subscription tier",
         });
       }
-      
+
       // Proceed with cleaning
       // Update usage count
     }),
@@ -127,7 +126,7 @@ export async function POST(req: Request) {
     event = stripe.webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET
+      process.env.STRIPE_WEBHOOK_SECRET,
     );
   } catch (error) {
     return new Response(`Webhook Error: ${error.message}`, { status: 400 });
@@ -157,11 +156,12 @@ export async function POST(req: Request) {
 
 ```typescript
 // jobs/usage-reset.ts
-import { Job, retry } from "@trigger.dev/sdk";
-import { Resend } from 'resend';
-import { prisma } from "~/server/db";
 import * as Sentry from "@sentry/nextjs";
-import posthog from 'posthog-js';
+import { Job, retry } from "@trigger.dev/sdk";
+import posthog from "posthog-js";
+import { Resend } from "resend";
+
+import { prisma } from "~/server/db";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -205,7 +205,7 @@ export const usageResetJob = new Job(
             });
 
             // Log successful reset
-            posthog.capture('usage_reset_successful', {
+            posthog.capture("usage_reset_successful", {
               userId: subscription.userId,
               tier: subscription.tier,
             });
@@ -213,14 +213,14 @@ export const usageResetJob = new Job(
           {
             retries: 5,
             exponentialBackoff: true,
-          }
+          },
         );
       }
     } catch (error) {
       Sentry.captureException(error);
       throw error;
     }
-  }
+  },
 );
 ```
 
@@ -228,21 +228,22 @@ export const usageResetJob = new Job(
 
 ```typescript
 // app/api/cron/usage-reset/route.ts
-import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
+import { NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
-import posthog from 'posthog-js';
+import posthog from "posthog-js";
+import { Resend } from "resend";
+
 import { prisma } from "~/server/db";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export const runtime = 'edge';
-export const preferredRegion = 'iad1';
+export const runtime = "edge";
+export const preferredRegion = "iad1";
 
 async function resetUsageWithRetry(
   subscription: any,
   attempt: number = 1,
-  maxAttempts: number = 5
+  maxAttempts: number = 5,
 ): Promise<void> {
   try {
     await prisma.usageCount.update({
@@ -261,14 +262,14 @@ async function resetUsageWithRetry(
       html: `Your usage count has been reset for the new billing period.`,
     });
 
-    posthog.capture('usage_reset_successful', {
+    posthog.capture("usage_reset_successful", {
       userId: subscription.userId,
       tier: subscription.tier,
     });
   } catch (error) {
     if (attempt < maxAttempts) {
       const delay = Math.pow(2, attempt) * 1000;
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
       return resetUsageWithRetry(subscription, attempt + 1, maxAttempts);
     }
     throw error;
@@ -277,9 +278,9 @@ async function resetUsageWithRetry(
 
 export async function GET(request: Request) {
   try {
-    const authHeader = request.headers.get('authorization');
+    const authHeader = request.headers.get("authorization");
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return new Response('Unauthorized', { status: 401 });
+      return new Response("Unauthorized", { status: 401 });
     }
 
     const subscriptions = await prisma.subscription.findMany({
@@ -311,19 +312,23 @@ export async function GET(request: Request) {
 ```
 
 #### Vercel Cron Configuration
+
 ```json
 // vercel.json
 {
-  "crons": [{
-    "path": "/api/cron/usage-reset",
-    "schedule": "0 0 * * *"
-  }]
+  "crons": [
+    {
+      "path": "/api/cron/usage-reset",
+      "schedule": "0 0 * * *"
+    }
+  ]
 }
 ```
 
 ## Implementation Plan
 
 ### Phase 1: Database and Backend Setup (Week 1)
+
 - Implement new database models
 - Set up Stripe integration
 - Create subscription management procedures
@@ -332,12 +337,14 @@ export async function GET(request: Request) {
 - Configure email notifications with Resend
 
 ### Phase 2: Frontend Implementation (Week 2)
+
 - Implement subscription UI
 - Add upgrade/downgrade flows
 - Implement usage visualization
 - Add payment flow integration
 
 ### Phase 3: Migration and Testing (Week 3)
+
 - Migrate existing users to legacy status
 - Implement and test Stripe webhooks
 - End-to-end testing

@@ -92,7 +92,7 @@ export const subscriptions = mysqlTable("subscriptions", {
 // pages/api/webhooks/revenuecat.ts
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   if (req.method !== "POST") {
     return res.status(405).end();
@@ -132,7 +132,7 @@ export default async function handler(
           .update(subscriptions)
           .set({ status: "CANCELLED" })
           .where(
-            eq(subscriptions.originalPurchaseId, event.original_purchase_id)
+            eq(subscriptions.originalPurchaseId, event.original_purchase_id),
           );
         break;
 
@@ -141,7 +141,7 @@ export default async function handler(
           .update(subscriptions)
           .set({ status: "PAST_DUE" })
           .where(
-            eq(subscriptions.originalPurchaseId, event.original_purchase_id)
+            eq(subscriptions.originalPurchaseId, event.original_purchase_id),
           );
         break;
     }
@@ -157,7 +157,7 @@ export default async function handler(
 export function verifyWebhookSignature(
   payload: string,
   signature: string,
-  secret: string
+  secret: string,
 ): boolean {
   const hmac = crypto.createHmac("sha256", secret);
   const digest = hmac.update(payload).digest("hex");
@@ -176,7 +176,7 @@ export const paymentsRouter = router({
         purchaseToken: z.string(),
         productId: z.string(),
         userId: z.string(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       let purchaseId: string;
@@ -236,7 +236,7 @@ export const paymentsRouter = router({
     .input(
       z.object({
         userId: z.string(),
-      })
+      }),
     )
     .query(async ({ input }) => {
       const [subscriptionResult] = await db
@@ -255,6 +255,9 @@ export const paymentsRouter = router({
 #### RevenueCat SDK Configuration
 
 ```typescript
+// services/purchases.ts
+import Purchases from "react-native-purchases";
+
 // config/revenueCat.ts
 export const REVENUE_CAT_CONFIG = {
   apiKey: process.env.REVENUE_CAT_API_KEY,
@@ -263,9 +266,6 @@ export const REVENUE_CAT_CONFIG = {
     subscription: "casperai.ai-journal.subscription.monthly",
   },
 };
-
-// services/purchases.ts
-import Purchases from "react-native-purchases";
 
 export class PurchaseService {
   static async initialize() {
@@ -291,7 +291,7 @@ export class PurchaseService {
       throw new PaymentError(
         "PRODUCTS_FETCH_FAILED",
         "Failed to fetch products",
-        error
+        error,
       );
     }
   }
@@ -317,7 +317,7 @@ export class PurchaseService {
       throw new PaymentError(
         "RESTORE_FAILED",
         "Failed to restore purchases",
-        error
+        error,
       );
     }
   }
@@ -333,7 +333,7 @@ export class PurchaseService {
       throw new PaymentError(
         "STATUS_CHECK_FAILED",
         "Failed to check subscription status",
-        error
+        error,
       );
     }
   }
@@ -348,7 +348,7 @@ export class PaymentError extends Error {
   constructor(
     public code: string,
     public message: string,
-    public originalError?: any
+    public originalError?: any,
   ) {
     super(message);
     this.name = "PaymentError";
@@ -363,7 +363,7 @@ export const handlePaymentError = (error: any) => {
       case Purchases.PRODUCT_NOT_AVAILABLE_ERROR:
         return new PaymentError(
           "PRODUCT_UNAVAILABLE",
-          "Product is not available"
+          "Product is not available",
         );
       case Purchases.RECEIPT_FAILED_ERROR:
         return new PaymentError("RECEIPT_INVALID", "Receipt validation failed");

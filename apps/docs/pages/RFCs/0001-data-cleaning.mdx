@@ -9,6 +9,7 @@ To create a system that efficiently extracts data from .xlsx and .csv files, sto
 Our application needs a standardized method for handling spreadsheet data, with a focus on data formatting and interpretation. Manual processing of Excel and CSV files is time-consuming and error-prone. This RFC proposes a solution to automate this process, improving efficiency and data accuracy.
 
 ## Linear Ticket
+
 - [CAS-66: Data Cleaning](https://linear.app/casper-studios/issue/CAS-66/data-cleaning)
 
 ## Proposal
@@ -23,6 +24,7 @@ Our application needs a standardized method for handling spreadsheet data, with 
 ## Technical Details
 
 ### Stack Components:
+
 - NextJS (React framework)
 - tRPC (Type-safe API layer)
 - Prisma (ORM)
@@ -33,7 +35,13 @@ Our application needs a standardized method for handling spreadsheet data, with 
 ### Data Structure:
 
 ```typescript
-type ColumnType = "name" | "date" | "phoneNumber" | "address" | "currency" | "city";
+type ColumnType =
+  | "name"
+  | "date"
+  | "phoneNumber"
+  | "address"
+  | "currency"
+  | "city";
 
 interface Cell {
   readonly id: string;
@@ -90,13 +98,13 @@ model Sheet {
 ### Basic Manipulation of Cells and Sheet
 
 ```typescript
-import { Sheet, Cell, Column, ColumnType } from './types';
+import { Cell, Column, ColumnType, Sheet } from "./types";
 
 // Update a cell's value
 const updateCell = (
   cellId: string,
   updatedValue: string,
-  sheet: Sheet
+  sheet: Sheet,
 ): Sheet => {
   return {
     ...sheet,
@@ -114,29 +122,37 @@ const updateCell = (
 const formatColumn = async (
   columnId: string,
   columnType: ColumnType,
-  sheet: Sheet
+  sheet: Sheet,
 ): Promise<Sheet> => {
   // This function would typically be implemented as an API call or Inngest event
   console.log(`Formatting column ${columnId} as ${columnType}`);
-  
+
   // Simulating LLM formatting
-  const formattedCells = sheet.columns[columnId].cellOrder.reduce((acc, cellId) => {
-    const cell = sheet.cells[cellId];
-    let formattedValue = cell.originalValue;
+  const formattedCells = sheet.columns[columnId].cellOrder.reduce(
+    (acc, cellId) => {
+      const cell = sheet.cells[cellId];
+      let formattedValue = cell.originalValue;
 
-    switch (columnType) {
-      case 'date':
-        formattedValue = new Date(cell.originalValue).toISOString().split('T')[0];
-        break;
-      case 'phoneNumber':
-        formattedValue = cell.originalValue.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
-        break;
-      // Add more cases for other column types
-    }
+      switch (columnType) {
+        case "date":
+          formattedValue = new Date(cell.originalValue)
+            .toISOString()
+            .split("T")[0];
+          break;
+        case "phoneNumber":
+          formattedValue = cell.originalValue.replace(
+            /(\d{3})(\d{3})(\d{4})/,
+            "($1) $2-$3",
+          );
+          break;
+        // Add more cases for other column types
+      }
 
-    acc[cellId] = { ...cell, updatedValue: formattedValue };
-    return acc;
-  }, {});
+      acc[cellId] = { ...cell, updatedValue: formattedValue };
+      return acc;
+    },
+    {},
+  );
 
   return {
     ...sheet,
@@ -159,21 +175,25 @@ export { updateCell, formatColumn };
 ## Implementation Plan
 
 ### Phase 1: Basic File Upload and Processing
+
 - Implement file upload functionality
 - Create backend logic to process .xlsx and .csv files
 - Develop database schema and initial data storage
 
 ### Phase 2: Cell Updating and Column Formatting
+
 - Implement `updateCell` functionality
 - Develop `formatColumn` logic with placeholder LLM integration
 - Create tRPC procedures for cell updating and column formatting
 
 ### Phase 3: LLM Integration
+
 - Set up Inngest for task queuing
 - Integrate real LLM for column formatting
 - Implement column type detection and advanced formatting logic
 
 ### Phase 4: Frontend Development and Testing
+
 - Develop frontend components for data display and manipulation
 - Implement user interface for triggering cell updates and column formatting
 - Conduct thorough testing and optimization
