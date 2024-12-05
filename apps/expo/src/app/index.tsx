@@ -28,6 +28,10 @@ export default function Index() {
   const { signOut } = useAuth();
   const postQuery = api.post.all.useQuery();
 
+  const protectedPostQuery = api.post.protected.useQuery(undefined, {
+    enabled: !!user,
+  })
+
   useWarmUpBrowser()
 
   const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' })
@@ -37,6 +41,8 @@ export default function Index() {
       const { createdSessionId, setActive } = await startOAuthFlow({
         redirectUrl: Linking.createURL('/', { scheme: 'myapp' }),
       })
+
+      console.log(createdSessionId)
 
       if (createdSessionId) {
         setActive?.({ session: createdSessionId })
@@ -61,7 +67,7 @@ export default function Index() {
         </Text>
         <SignedIn>
           <Text className="text-primary">You are signed in as {user?.emailAddresses[0]?.emailAddress}</Text>
-
+          <Text className="text-primary">{protectedPostQuery.data ?? ""}</Text>
           <Button title="Sign Out" onPress={() => signOut()} />
         </SignedIn>
         <SignedOut>
@@ -74,8 +80,6 @@ export default function Index() {
 
           <Button title="Sign in with Google" onPress={onPressGoogleSignIn} />
         </SignedOut>
-
-        {/* <MobileAuth /> */}
 
         {/* <View className="py-2">
           <Text className="font-semibold italic text-primary">

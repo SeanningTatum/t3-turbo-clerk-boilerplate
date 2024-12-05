@@ -6,24 +6,12 @@
  * tl;dr - this is where all the tRPC server stuff is created and plugged in.
  * The pieces you will need to use are documented accordingly near the end
  */
-import { initTRPC } from "@trpc/server";
+import type { getAuth } from "@clerk/nextjs/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
-// import type { Session } from "@acme/auth";
-// import { auth, validateToken } from "@acme/auth";
 import { db } from "@acme/db/client";
-
-/**
- * Isomorphic Session getter for API requests
- * - Expo requests will have a session token in the Authorization header
- * - Next.js requests will have a session token in cookies
- */
-// const isomorphicGetSession = async (headers: Headers) => {
-// const authToken = headers.get("Authorization") ?? null;
-// if (authToken) return validateToken(authToken);
-// return auth();
-// };
 
 /**
  * 1. CONTEXT
@@ -39,20 +27,16 @@ import { db } from "@acme/db/client";
  */
 export const createTRPCContext = (opts: {
   headers: Headers;
-  // session: Session | null;
+  auth: ReturnType<typeof getAuth>;
 }) => {
-  const authToken = opts.headers.get("Authorization") ?? null;
-  // const session = await isomorphicGetSession(opts.headers);
-
-  // const source = opts.headers.get("x-trpc-source") ?? "unknown";
-  // console.log(">>> tRPC Request from", source, "by", session?.user);
-
   return {
-    // session,
+    ...opts,
+    auth: opts.auth,
     db,
-    token: authToken,
   };
 };
+
+export type TRPCContext = Awaited<ReturnType<typeof createTRPCContext>>;
 
 /**
  * 2. INITIALIZATION
@@ -130,16 +114,18 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
  *
  * @see https://trpc.io/docs/procedures
  */
-// export const protectedProcedure = t.procedure
-//   .use(timingMiddleware)
-//   .use(({ ctx, next }) => {
-//     if (!ctx.session?.user) {
-//       throw new TRPCError({ code: "UNAUTHORIZED" });
-//     }
-//     return next({
-//       ctx: {
-//         // infers the `session` as non-nullable
-//         session: { ...ctx.session, user: ctx.session.user },
-//       },
-//     });
-//   });
+export const protectedProcedure = t.procedure
+  .use(timingMiddleware)
+  .use(({ ctx, next }) => {
+    if (!ctx.auth.userId) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "Not authenticated",
+      });
+    }
+    return next({
+      ctx: {
+        auth: ctx.auth,
+      },
+    });
+  });

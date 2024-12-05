@@ -1,5 +1,7 @@
 import { cache } from "react";
 import { headers } from "next/headers";
+import { NextRequest } from "next/server";
+import { getAuth } from "@clerk/nextjs/server";
 import { createHydrationHelpers } from "@trpc/react-query/rsc";
 
 import type { AppRouter } from "@acme/api";
@@ -16,8 +18,10 @@ const createContext = cache(() => {
   heads.set("x-trpc-source", "rsc");
 
   return createTRPCContext({
-    // session: await auth(),
     headers: heads,
+    auth: getAuth(
+      new NextRequest("https://notused.com", { headers: headers() }),
+    ),
   });
 });
 

@@ -1,15 +1,19 @@
 import type { TRPCRouterRecord } from "@trpc/server";
 
-import { publicProcedure } from "../trpc";
+import { protectedProcedure, publicProcedure } from "../trpc";
 
 export const postRouter = {
-  all: publicProcedure.query(() => {
+  all: publicProcedure.query(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 3000));
     return "Hi";
     // return ctx.db.select().from(schema.post).orderBy(desc(schema.post.id));
     // return ctx.db.query.Post.findMany({
     //   orderBy: desc(Post.id),
     //   limit: 10,
     // });
+  }),
+  protected: protectedProcedure.query(({ ctx }) => {
+    return `User ID read from server is: ${ctx.auth.userId}`;
   }),
 
   // byId: publicProcedure

@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { getAuth } from "@clerk/nextjs/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 
 import { appRouter, createTRPCContext } from "@acme/api";
@@ -31,8 +32,8 @@ const handler = async (req: NextRequest) => {
     req,
     createContext: () =>
       createTRPCContext({
-        // session: req.auth,
         headers: req.headers,
+        auth: getAuth(req),
       }),
     onError({ error, path }) {
       console.error(`>>> tRPC Error on '${path}'`, error);
