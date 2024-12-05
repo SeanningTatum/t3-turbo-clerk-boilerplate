@@ -1,0 +1,194 @@
+# Excel and CSV Data Extraction and Processing System with Cell and Column Formatting
+
+## Purpose
+
+To create a system that efficiently extracts data from .xlsx and .csv files, stores it in a structured format, and provides capabilities for updating and formatting individual cells and entire columns, leveraging Language Models (LLMs) for enhanced data interpretation.
+
+## Background
+
+Our application needs a standardized method for handling spreadsheet data, with a focus on data formatting and interpretation. Manual processing of Excel and CSV files is time-consuming and error-prone. This RFC proposes a solution to automate this process, improving efficiency and data accuracy.
+
+## Linear Ticket
+- [CAS-66: Data Cleaning](https://linear.app/casper-studios/issue/CAS-66/data-cleaning)
+
+## Proposal
+
+1. Accept .xlsx and .csv file uploads
+2. Extract data using the `xlsx` npm package
+3. Store the extracted data in a structured format in the database
+4. Provide operations for updating and formatting individual cells
+5. Utilize an LLM to format and interpret column data based on predefined types
+6. Implement a queuing system using Inngest for LLM processing tasks
+
+## Technical Details
+
+### Stack Components:
+- NextJS (React framework)
+- tRPC (Type-safe API layer)
+- Prisma (ORM)
+- Zod (Schema validation)
+- xlsx (Excel file parsing)
+- Inngest (Task queuing)
+
+### Data Structure:
+
+```typescript
+type ColumnType = "name" | "date" | "phoneNumber" | "address" | "currency" | "city";
+
+interface Cell {
+  readonly id: string;
+  originalValue: string;
+  updatedValue: string;
+}
+
+interface Column {
+  readonly id: string;
+  name: string;
+  cellOrder: string[];
+}
+
+interface Sheet {
+  readonly id: string;
+  title: string;
+  cells: Record<string, Cell>;
+  columns: Record<string, Column>;
+  columnOrder: string[];
+}
+```
+
+This database structure is so that we can access cells with O(1) speed and will be only O(n) when manipulating the order of the rows or columns which is a functionality that we won't support at the moment.
+
+### Database Schema
+
+```prisma
+model Sheet {
+  id          String   @id @default(cuid())
+  title       String
+  cells       Json
+  columns     Json
+  columnOrder Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+```
+
+### API Endpoints (tRPC procedures):
+
+1. `uploadSheet`: Accept file upload and process it
+2. `getSheet`: Retrieve a sheet by ID
+3. `updateCell`: Update a specific cell
+4. `formatColumn`: Trigger LLM formatting for a column
+
+### File Processing
+
+1. Use `xlsx` to read the uploaded file
+2. Extract columns and rows
+3. Generate unique IDs for cells and columns
+4. Create a Sheet object with the extracted data
+5. Save the Sheet object to the database
+
+### Basic Manipulation of Cells and Sheet
+
+```typescript
+import { Sheet, Cell, Column, ColumnType } from './types';
+
+// Update a cell's value
+const updateCell = (
+  cellId: string,
+  updatedValue: string,
+  sheet: Sheet
+): Sheet => {
+  return {
+    ...sheet,
+    cells: {
+      ...sheet.cells,
+      [cellId]: {
+        ...sheet.cells[cellId],
+        updatedValue,
+      },
+    },
+  };
+};
+
+// Format a column using LLM (placeholder function)
+const formatColumn = async (
+  columnId: string,
+  columnType: ColumnType,
+  sheet: Sheet
+): Promise<Sheet> => {
+  // This function would typically be implemented as an API call or Inngest event
+  console.log(`Formatting column ${columnId} as ${columnType}`);
+  
+  // Simulating LLM formatting
+  const formattedCells = sheet.columns[columnId].cellOrder.reduce((acc, cellId) => {
+    const cell = sheet.cells[cellId];
+    let formattedValue = cell.originalValue;
+
+    switch (columnType) {
+      case 'date':
+        formattedValue = new Date(cell.originalValue).toISOString().split('T')[0];
+        break;
+      case 'phoneNumber':
+        formattedValue = cell.originalValue.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+        break;
+      // Add more cases for other column types
+    }
+
+    acc[cellId] = { ...cell, updatedValue: formattedValue };
+    return acc;
+  }, {});
+
+  return {
+    ...sheet,
+    cells: {
+      ...sheet.cells,
+      ...formattedCells,
+    },
+  };
+};
+
+export { updateCell, formatColumn };
+```
+
+### LLM Integration
+
+1. Use Inngest to create a queue for LLM processing tasks
+2. When `formatColumn` is called, create an Inngest event
+3. Inngest worker processes the event, sends data to LLM, and updates the database with formatted results
+
+## Implementation Plan
+
+### Phase 1: Basic File Upload and Processing
+- Implement file upload functionality
+- Create backend logic to process .xlsx and .csv files
+- Develop database schema and initial data storage
+
+### Phase 2: Cell Updating and Column Formatting
+- Implement `updateCell` functionality
+- Develop `formatColumn` logic with placeholder LLM integration
+- Create tRPC procedures for cell updating and column formatting
+
+### Phase 3: LLM Integration
+- Set up Inngest for task queuing
+- Integrate real LLM for column formatting
+- Implement column type detection and advanced formatting logic
+
+### Phase 4: Frontend Development and Testing
+- Develop frontend components for data display and manipulation
+- Implement user interface for triggering cell updates and column formatting
+- Conduct thorough testing and optimization
+
+## General Questions
+
+Q: How will this system handle large files?
+A: We'll implement streaming for file uploads and use batch processing for large datasets. The use of Inngest will also help manage the workload for LLM processing.
+
+Q: What about data privacy when using LLMs?
+A: We'll ensure that no sensitive data is sent to external LLMs. For highly sensitive data, we can explore using on-premise LLMs or implementing strict data anonymization.
+
+## Open Questions
+
+1. What additional column types should we support beyond the current set?
+2. How can we make the column type detection more accurate and flexible?
+3. What strategies can we employ to optimize LLM usage for better performance and cost-efficiency?
+4. How should we handle conflicts if multiple users are updating the same sheet simultaneously?

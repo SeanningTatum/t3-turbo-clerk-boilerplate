@@ -1,0 +1,371 @@
+# Adding Subscription Model to Data Cleaner App
+
+## Purpose
+
+To implement a tiered subscription model for the data cleaning app to monetize the service while ensuring sustainable growth. This change will transform the current free-to-use model into a subscription-based service with different tiers based on usage volume.
+
+## Background
+
+Currently, the app is free for all users, with 10 active users. The app allows users to clean various data types (address, city, currency, date, phoneNumber, name) without any limitations. To ensure sustainable development and support, we need to implement a revenue model while maintaining service quality and user satisfaction.
+
+## Proposal
+
+Implement a tiered subscription model with the following structure:
+- Trial Period: 14 days with full access (requires payment information)
+- Basic Tier: $5/month - 500 rows
+- Core Tier: $12/month - 1,000 rows
+- Custom Tier: $20/month - 5,000 rows
+- Pro Tier: $50/month - Contact for custom limits
+
+Legacy users (existing 10 users) will receive lifetime unlimited access.
+
+## Technical Details
+
+### 1. Database Changes
+
+```prisma
+enum SubscriptionTier {
+  basic,
+  core,
+  custom,
+  pro,
+  legacy,
+}
+
+model Subscription {
+    id            String   @id @default(cuid())
+    userId        String   @unique
+    tier          SubscriptionTier
+    stripeCustomerId String @unique
+    stripeSubscriptionId String? @unique
+    currentPeriodStart DateTime
+    currentPeriodEnd DateTime
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+}
+
+model UsageCount {
+    id            String   @id @default(cuid())
+    userId        String   @unique
+    cleanedRows   Int      @default(0)
+    periodStart   DateTime
+    periodEnd     DateTime
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+}
+```
+
+### 2. tRPC Procedures
+
+```typescript
+// Subscription procedures
+export const subscriptionRouter = createTRPCRouter({
+  getCurrentSubscription: protectedProcedure
+    .query(async ({ ctx }) => {
+      return ctx.prisma.subscription.findUnique({
+        where: { userId: ctx.auth.userId },
+      });
+    }),
+    
+  getUsage: protectedProcedure
+    .query(async ({ ctx }) => {
+      return ctx.prisma.usageCount.findUnique({
+        where: { userId: ctx.auth.userId },
+      });
+    }),
+
+  upgradeSubscription: protectedProcedure
+    .input(z.object({ newTier: z.enum(['basic', 'core', 'custom', 'pro']) }))
+    .mutation(async ({ ctx, input }) => {
+      // Stripe subscription upgrade logic
+    }),
+
+  downgradeSubscription: protectedProcedure
+    .input(z.object({ newTier: z.enum(['basic', 'core', 'custom', 'pro']) }))
+    .mutation(async ({ ctx, input }) => {
+      // Stripe subscription downgrade logic
+    }),
+});
+
+// Modified cleaning procedure
+export const cleaningRouter = createTRPCRouter({
+  cleanData: protectedProcedure
+    .input(CleaningInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      // Check subscription limits
+      const usage = await ctx.prisma.usageCount.findUnique({
+        where: { userId: ctx.auth.userId },
+      });
+      const subscription = await ctx.prisma.subscription.findUnique({
+        where: { userId: ctx.auth.userId },
+      });
+      
+      if (exceedsLimit(usage, subscription, input.rowCount)) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Row limit exceeded for current subscription tier',
+        });
+      }
+      
+      // Proceed with cleaning
+      // Update usage count
+    }),
+});
+```
+
+### 3. Stripe Integration
+
+```typescript
+// Stripe webhook handler
+export async function POST(req: Request) {
+  const body = await req.text();
+  const signature = headers().get("stripe-signature") as string;
+
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (error) {
+    return new Response(`Webhook Error: ${error.message}`, { status: 400 });
+  }
+
+  const session = event.data.object as Stripe.Checkout.Session;
+
+  if (event.type === "checkout.session.completed") {
+    // Handle successful subscription
+  }
+
+  if (event.type === "customer.subscription.updated") {
+    // Handle subscription updates
+  }
+
+  if (event.type === "customer.subscription.deleted") {
+    // Handle subscription cancellation
+  }
+
+  return new Response(null, { status: 200 });
+}
+```
+
+### 4. Usage Reset Implementation
+
+#### Option 1: Trigger.dev Implementation
+
+```typescript
+// jobs/usage-reset.ts
+import { Job, retry } from "@trigger.dev/sdk";
+import { Resend } from 'resend';
+import { prisma } from "~/server/db";
+import * as Sentry from "@sentry/nextjs";
+import posthog from 'posthog-js';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export const usageResetJob = new Job(
+  "usage-reset-job",
+  "0 0 * * *", // Daily check
+  async ({ logger }) => {
+    try {
+      // Get all subscriptions that need reset today
+      const subscriptions = await prisma.subscription.findMany({
+        where: {
+          currentPeriodEnd: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+            lte: new Date(),
+          },
+        },
+        include: {
+          usageCount: true,
+        },
+      });
+
+      for (const subscription of subscriptions) {
+        await retry(
+          async () => {
+            // Reset usage count
+            await prisma.usageCount.update({
+              where: { userId: subscription.userId },
+              data: {
+                cleanedRows: 0,
+                periodStart: new Date(),
+                periodEnd: subscription.currentPeriodEnd,
+              },
+            });
+
+            // Send email notification
+            await resend.emails.send({
+              from: "noreply@datacleaner.com",
+              to: subscription.userId,
+              subject: "Your Data Cleaner Usage Has Been Reset",
+              html: `Your usage count has been reset for the new billing period.`,
+            });
+
+            // Log successful reset
+            posthog.capture('usage_reset_successful', {
+              userId: subscription.userId,
+              tier: subscription.tier,
+            });
+          },
+          {
+            retries: 5,
+            exponentialBackoff: true,
+          }
+        );
+      }
+    } catch (error) {
+      Sentry.captureException(error);
+      throw error;
+    }
+  }
+);
+```
+
+#### Option 2: Vercel Cron Implementation
+
+```typescript
+// app/api/cron/usage-reset/route.ts
+import { NextResponse } from 'next/server';
+import { Resend } from 'resend';
+import * as Sentry from "@sentry/nextjs";
+import posthog from 'posthog-js';
+import { prisma } from "~/server/db";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export const runtime = 'edge';
+export const preferredRegion = 'iad1';
+
+async function resetUsageWithRetry(
+  subscription: any,
+  attempt: number = 1,
+  maxAttempts: number = 5
+): Promise<void> {
+  try {
+    await prisma.usageCount.update({
+      where: { userId: subscription.userId },
+      data: {
+        cleanedRows: 0,
+        periodStart: new Date(),
+        periodEnd: subscription.currentPeriodEnd,
+      },
+    });
+
+    await resend.emails.send({
+      from: "noreply@datacleaner.com",
+      to: subscription.userId,
+      subject: "Your Data Cleaner Usage Has Been Reset",
+      html: `Your usage count has been reset for the new billing period.`,
+    });
+
+    posthog.capture('usage_reset_successful', {
+      userId: subscription.userId,
+      tier: subscription.tier,
+    });
+  } catch (error) {
+    if (attempt < maxAttempts) {
+      const delay = Math.pow(2, attempt) * 1000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return resetUsageWithRetry(subscription, attempt + 1, maxAttempts);
+    }
+    throw error;
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+
+    const subscriptions = await prisma.subscription.findMany({
+      where: {
+        currentPeriodEnd: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          lte: new Date(),
+        },
+      },
+      include: {
+        usageCount: true,
+      },
+    });
+
+    for (const subscription of subscriptions) {
+      try {
+        await resetUsageWithRetry(subscription);
+      } catch (error) {
+        Sentry.captureException(error);
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    Sentry.captureException(error);
+    return NextResponse.json({ success: false }, { status: 500 });
+  }
+}
+```
+
+#### Vercel Cron Configuration
+```json
+// vercel.json
+{
+  "crons": [{
+    "path": "/api/cron/usage-reset",
+    "schedule": "0 0 * * *"
+  }]
+}
+```
+
+## Implementation Plan
+
+### Phase 1: Database and Backend Setup (Week 1)
+- Implement new database models
+- Set up Stripe integration
+- Create subscription management procedures
+- Implement usage tracking
+- Set up usage reset cron job (either Trigger.dev or Vercel solution)
+- Configure email notifications with Resend
+
+### Phase 2: Frontend Implementation (Week 2)
+- Implement subscription UI
+- Add upgrade/downgrade flows
+- Implement usage visualization
+- Add payment flow integration
+
+### Phase 3: Migration and Testing (Week 3)
+- Migrate existing users to legacy status
+- Implement and test Stripe webhooks
+- End-to-end testing
+- Deploy to production
+
+## General Questions
+
+Q: How will existing users be handled?
+A: Existing users will be manually upgraded to lifetime unlimited access.
+
+Q: What happens when a user reaches their limit?
+A: They will be shown a modal blocking further cleaning operations and prompting them to upgrade.
+
+Q: Can users switch between plans?
+A: Yes, upgrades are immediate while downgrades take effect at the next billing cycle.
+
+Q: What happens if a usage reset fails?
+A: The system will automatically retry up to 5 times with exponential backoff. All failures are logged in Sentry and PostHog for monitoring.
+
+Q: How will we know if the reset system is working properly?
+A: We track all successful and failed resets through Sentry and PostHog, allowing us to monitor the system's health and investigate any issues.
+
+## Open Questions
+
+1. Should we implement any automated warning system when users approach their usage limits?
+
+2. Should we consider implementing annual billing options in the future?
+
+3. How should we handle users who attempt to create multiple accounts for additional trial periods?
+
+4. Should we implement a system to track feature usage to inform future tier differentiation?

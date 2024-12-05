@@ -9,6 +9,67 @@ interface PackageJson {
 }
 
 export default function generator(plop: PlopTypes.NodePlopAPI): void {
+  plop.setGenerator("app", {
+    description: "Generate a new application for the Acme Monorepo",
+    prompts: [
+      {
+        type: "input",
+        name: "name",
+        message:
+          "What is the name of the app? (You can skip the `@acme/` prefix)",
+      },
+    ],
+    actions: [
+      (answers) => {
+        if ("name" in answers && typeof answers.name === "string") {
+          if (answers.name.startsWith("@acme/")) {
+            answers.name = answers.name.replace("@acme/", "");
+          }
+        }
+        return "Config sanitized";
+      },
+      {
+        type: "add",
+        path: "apps/{{ name }}/eslint.config.js",
+        templateFile: "templates/eslint.config.js.hbs",
+      },
+      {
+        type: "add",
+        path: "apps/{{ name }}/package.json",
+        templateFile: "templates/package.json.hbs",
+      },
+      {
+        type: "add",
+        path: "apps/{{ name }}/tsconfig.json",
+        templateFile: "templates/tsconfig.json.hbs",
+      },
+      {
+        type: "add",
+        path: "apps/{{ name }}/src/index.ts",
+        template: "export const name = '{{ name }}';",
+      },
+      {
+        type: "modify",
+        path: "apps/{{ name }}/package.json",
+        async transform(content, answers) {
+          if ("deps" in answers && typeof answers.deps === "string") {
+            const pkg = JSON.parse(content) as PackageJson;
+            for (const dep of answers.deps.split(" ").filter(Boolean)) {
+              const version = await fetch(
+                `https://registry.npmjs.org/-/package/${dep}/dist-tags`,
+              )
+                .then((res) => res.json())
+                .then((json) => json.latest);
+              if (!pkg.dependencies) pkg.dependencies = {};
+              pkg.dependencies[dep] = `^${version}`;
+            }
+            return JSON.stringify(pkg, null, 2);
+          }
+          return content;
+        },
+      },
+    ],
+  });
   plop.setGenerator("init", {
     description: "Generate a new package for the Acme Monorepo",
     prompts: [
