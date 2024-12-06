@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 
+import { Button } from "@acme/ui/button";
+
 import { api } from "~/trpc/server";
 import { ExampleClient } from "./_components/example-client";
 import { ExampleSsr } from "./_components/example-ssr";
@@ -15,6 +17,8 @@ export default function HomePage() {
         <h1 className="text-5xl font-extrabold tracking-tight sm:text-[5rem]">
           Create <span className="text-primary">T3</span> Turbo
         </h1>
+
+        <Button>Sup</Button>
 
         <ExampleClient />
 

@@ -5,7 +5,7 @@ export default {
     "scope-enum": [
       2,
       "always",
-      ["api", "config", "db", "tooling", "ui", "validators"],
+      ["ai-chat", "api", "config", "db", "tooling", "ui", "validators"],
     ],
     "type-enum": [
       2,

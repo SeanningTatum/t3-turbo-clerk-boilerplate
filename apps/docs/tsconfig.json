@@ -7,8 +7,13 @@
     "paths": {
       "~/*": ["./src/*"]
     },
-    "plugins": [{ "name": "next" }],
-    "module": "esnext"
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "module": "esnext",
+    "strictNullChecks": true
   },
   "include": [".", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

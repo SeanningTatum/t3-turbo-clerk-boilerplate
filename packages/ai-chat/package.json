@@ -1,35 +1,46 @@
 {
-  "name": "@acme/docs",
+  "name": "@acme/ai-chat",
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "types": "./dist/src/*.d.ts",
+      "default": [
+        "./src/*.ts",
+        "./src/*.tsx"
+      ]
+    }
+  },
   "license": "MIT",
   "scripts": {
-    "dev": "pnpm with-env next -p 3001",
-    "build": "next build",
-    "start": "next start -p 3001",
+    "build": "tsc",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "dev": "tsc",
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit --emitDeclarationOnly false",
-    "with-env": "dotenv -e ../../.env --"
+    "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "devDependencies": {
     "@acme/eslint-config": "workspace:*",
     "@acme/prettier-config": "workspace:*",
     "@acme/tsconfig": "workspace:*",
+    "@types/react": "catalog:react18",
     "eslint": "catalog:",
     "prettier": "catalog:",
+    "react": "catalog:react18",
     "typescript": "catalog:"
   },
   "prettier": "@acme/prettier-config",
+  "peerDependencies": {
+    "react": "catalog:react18"
+  },
   "dependencies": {
-    "@acme/ai-chat": "workspace:*",
-    "@acme/ui": "workspace:*",
-    "next": "^14.2.15",
-    "nextra": "^3.2.4",
-    "nextra-theme-docs": "^3.2.4",
-    "react": "catalog:react18",
-    "react-dom": "catalog:react18"
+    "@ai-sdk/anthropic": "^1.0.3",
+    "ai": "^4.0.13"
   }
 }
