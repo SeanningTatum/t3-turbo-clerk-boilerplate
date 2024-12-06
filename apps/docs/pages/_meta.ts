@@ -1,11 +1,20 @@
 export default {
   index: "",
+  "ai-chat": {
+    title: "AI Chat",
+    type: "page",
+    theme: {
+      layout: "full",
+    },
+  },
   "-- Documentation": {
     type: "separator",
     title: "Documentation",
   },
-  Meetings: "",
-  RFCs: {
+  meetings: {
+    title: "Meetings",
+  },
+  rfcs: {
     title: "Request for Comments",
   },
   "-- Links": {
